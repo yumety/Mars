@@ -77,10 +77,18 @@ class YoloModel(nn.Module):
         return self
 
     def freezeBackbone(self):
-        raise NotImplementedError("YoloModel::freezeBackbone")
+        for param in self.backbone.parameters():
+            param.requires_grad = False
+        print("[YoloModel] Backbone frozen.")
+
+        # raise NotImplementedError("YoloModel::freezeBackbone")
 
     def unfreezeBackbone(self):
-        raise NotImplementedError("YoloModel::unfreezeBackbone")
+        for param in self.backbone.parameters():
+            param.requires_grad = True
+        print("[YoloModel] Backbone unfrozen.")
+
+        # raise NotImplementedError("YoloModel::unfreezeBackbone")
 
     def forward(self, x):
         if self.inferenceMode:
@@ -96,8 +104,11 @@ class YoloModel(nn.Module):
             yo: (B, nc + regMax * 4, 40, 40)
             zo: (B, nc + regMax * 4, 20, 20)
         """
+        # _, feat1, feat2, feat3 = self.backbone.forward(x)
+        # _, X, Y, Z = self.neck.forward(feat1, feat2, feat3)
+        # xo, yo, zo = self.head.forward(X, Y, Z)
         _, feat1, feat2, feat3 = self.backbone.forward(x)
-        _, X, Y, Z = self.neck.forward(feat1, feat2, feat3)
+        X, Y, Z = self.neck.forward(feat1, feat2, feat3)
         xo, yo, zo = self.head.forward(X, Y, Z)
         return xo, yo, zo
 

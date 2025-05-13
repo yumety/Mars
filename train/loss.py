@@ -64,6 +64,7 @@ class DetectionLoss(object):
         self.assigner = TaskAlignedAssigner(topk=self.mcfg.talTopk, num_classes=self.mcfg.nc, alpha=0.5, beta=6.0)
         self.bce = nn.BCEWithLogitsLoss(reduction="none")
         self.bboxLoss = BboxLoss(self.mcfg.regMax).to(self.mcfg.device)
+        self.proj = torch.arange(self.mcfg.regMax, dtype=torch.float, device=self.mcfg.device)
 
     def preprocess(self, targets, batchSize, scaleTensor):
         """Preprocesses the target counts and matches with the input batch size to output a tensor."""
@@ -105,10 +106,31 @@ class DetectionLoss(object):
         # ground truth preprocess
         targets = self.preprocess(targets.to(self.mcfg.device), batchSize, scaleTensor=self.model.scaleTensor) # (batchSize, maxCount, 5)
         gtLabels, gtBboxes = targets.split((1, 4), 2)  # cls=(batchSize, maxCount, 1), xyxy=(batchSize, maxCount, 4)
-        gtMask = gtBboxes.sum(2, keepdim=True).gt_(0.0)
+        gtMask = gtBboxes.sum(2, keepdim=True).gt_(0.0)   # (B, max_gt,1)
 
-        raise NotImplementedError("DetectionLoss::__call__")
+        anchor_points = self.model.anchorPoints              # (N, 2)
+        stride_tensor = self.model.anchorStrides             # (N, 1)
+        pred_bboxes = bboxDecode(anchor_points, predBoxDistribution, self.proj, xywh=False)  # (B, N, 4)
+        
+        _, target_bboxes, target_scores, fg_mask, _ = self.assigner(
+            predClassScores.detach().sigmoid(),
+            (pred_bboxes.detach() * stride_tensor).type(gtBboxes.dtype),
+            anchor_points * stride_tensor,
+            gtLabels,
+            gtBboxes,
+            gtMask,
+        )
+        
+        target_scores_sum = max(target_scores.sum(), 1)
+        
+        # Cls loss
+        loss[1] = self.bce(predClassScores, target_scores.to(predClassScores.dtype)).sum() / target_scores_sum
 
+        # Bbox loss
+        if fg_mask.sum():
+            target_bboxes /= stride_tensor
+            loss[0], loss[2] = self.bboxLoss(predBoxDistribution, pred_bboxes, anchor_points, target_bboxes, target_scores, target_scores_sum, fg_mask)
+        
         loss[0] *= self.mcfg.lossWeights[0]  # box
         loss[1] *= self.mcfg.lossWeights[1]  # cls
         loss[2] *= self.mcfg.lossWeights[2]  # dfl
