@@ -51,6 +51,7 @@ class Neck(nn.Module):
         x = self.up1(feat3)
         x = torch.cat([x, feat2], dim=1)
         x = self.c2f1(x)
+        C = x
 
         y = self.up2(x)
         y = torch.cat([y, feat1], dim=1)
@@ -64,6 +65,6 @@ class Neck(nn.Module):
         z = torch.cat([z, feat3], dim=1)
         Z = self.c2f4(z)  # 20x20 output
 
-        return X, Y, Z
+        return C, X, Y, Z
         
         # raise NotImplementedError("Neck::forward")
