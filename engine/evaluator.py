@@ -5,7 +5,8 @@ from factory.modelfactory import MarsModelFactory
 from inference.predictor import DetectionPredictor
 from inference.painter import DetectionPainter
 from eval.map import MeanAveragePrecision
-
+from misc.ema import ModelEMA
+import os
 
 class ImageEvaluationEntry(object):
     def __init__(self, rawImage, tinfo, truePredBoxes, falsePredBoxes, labelBoxes, truePredClasses, falsePredClasses, labelClasses):
@@ -29,6 +30,10 @@ class MarsEvaluator(object):
 
     def initPredictor(self):
         modelFile = self.mcfg.modelSavePath()
+        ema_file = os.path.join(self.mcfg.cacheDir(), "ema_weights.pth")
+        if self.mcfg.use_ema and os.path.exists(ema_file):
+            modelFile = ema_file
+        
         model = MarsModelFactory.loadPretrainedModel(self.mcfg, modelFile)
         return DetectionPredictor(self.mcfg, model)
 

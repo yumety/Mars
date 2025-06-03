@@ -47,9 +47,15 @@ def mcfg(tags):
         mcfg.teacherModelFile = "/auto/mars/ame/c1.nano.teacher/__cache__/best_weights.pth"
         mcfg.distilLossWeights = (1.0, 0.05, 0.001)
         mcfg.maxEpoch = 100
+        mcfg.distil_temperature = 4.0
         mcfg.backboneFreezeEpochs = [x for x in range(0, 25)]
         mcfg.epochValidation = False # DO NOT MODIFY
         mcfg.trainSplitName = "small" # DO NOT MODIFY
         mcfg.teacherClassIndexes = [x for x in range(0, 10)] # DO NOT MODIFY
 
+    if "train" in tags or "distillation" in tags:
+        mcfg.use_ema = True
+        mcfg.ema_decay = 0.9999
+        mcfg.ema_start_epoch = 10
+        
     return mcfg
