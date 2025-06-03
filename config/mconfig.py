@@ -67,6 +67,11 @@ class ModelConfig(object):
         self.cfgname = None
         self.nobuf = False
         self.nc = None
+        
+        self.use_ema = False
+        self.ema_decay = 0.9999
+        self.ema_start_epoch = 10
+        self.ema_update_freq = 1
 
     def enrichTags(self, tags):
         for tag in tags:

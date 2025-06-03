@@ -7,6 +7,7 @@ from dl.vocdataset import VocDataset
 from factory.modelfactory import MarsModelFactory
 from train.opt import MarsOptimizerFactory
 from train.sched import MarsLearningRateSchedulerFactory
+from misc.ema import ModelEMA	
 
 
 class MarsBaseTrainer(object):
@@ -23,6 +24,7 @@ class MarsBaseTrainer(object):
         if self.mcfg.epochValidation:
             self.checkpointFiles.append(self.bestCacheFile)
         self.backboneFreezed = False
+        self.ema = None
 
     def initTrainDataLoader(self):
         return VocDataset.getDataLoader(mcfg=self.mcfg, splitName=self.mcfg.trainSplitName, isTest=False, fullInfo=False, selectedClasses=self.mcfg.trainSelectedClasses)
@@ -133,6 +135,9 @@ class MarsBaseTrainer(object):
         if startEpoch >= self.mcfg.maxEpoch:
             log.inf("Training skipped")
             return
+        if self.mcfg.use_ema:
+            self.ema = ModelEMA(model, decay=self.mcfg.ema_decay)
+            self.ema_cache_file = os.path.join(self.mcfg.cacheDir(), "ema_weights.pth")
 
         loss = self.initLoss(model)
         opt = self.initOptimizer(model)
@@ -157,8 +162,29 @@ class MarsBaseTrainer(object):
                 epoch=epoch,
             )
             self.epochSave(epoch, model, trainLoss, validationLoss)
+            
+            if self.ema:
+                self.ema.update()
+                
+            if self.ema and self.mcfg.epochValidation:
+                original_model = copy.deepcopy(model)
+                model = self.ema.apply(model)
+                validationLoss = self.epochValidation(model=model,
+        loss=loss,
+        dataLoader=validationLoader,
+        epoch=epoch)
+                model = original_model
+            else:
+                validationLoss = self.epochValidation(model=model,
+        loss=loss,
+        dataLoader=validationLoader,
+        epoch=epoch)
+            
+            if self.ema:
+                self.save_ema_weights(epoch)
 
         log.inf("Mars trainer finished with max epoch at {}".format(self.mcfg.maxEpoch))
+        
 
     def epochSave(self, epoch, model, trainLoss, validationLoss):
         model.save(self.epochCacheFile)
@@ -172,6 +198,13 @@ class MarsBaseTrainer(object):
             f.write("validation_loss={}\n".format(validationLoss))
             f.write("best_loss_epoch={}\n".format(epoch + 1))
             f.write("best_loss={}\n".format(self.bestLoss))
+        
+    def save_ema_weights(self, epoch):
+        torch.save({
+            'epoch': epoch,
+            'state_dict': self.ema.ema.state_dict(),
+            'best_loss': self.bestLoss,
+        }, self.ema_cache_file)
 
 
 def getTrainer(mcfg):
