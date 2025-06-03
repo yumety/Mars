@@ -27,7 +27,12 @@ def mcfg(tags):
     if "full" in tags:
         mcfg.modelName = "base"
         mcfg.maxEpoch = 200
+
+    if "swintransformer" in tags:
+        mcfg.modelName = "base"
+        mcfg.maxEpoch = 200
         mcfg.backboneFreezeEpochs = [x for x in range(0, 100)]
+        mcfg.useSwinTransformer = True
 
     if "teacher" in tags:
         mcfg.modelName = "base"
@@ -37,6 +42,7 @@ def mcfg(tags):
 
     if "distillation" in tags:
         mcfg.modelName = "distillation"
+        mcfg.distil_temperature = 4.0
         mcfg.checkpointModelFile = "/auto/mars/ame/c1.nano.teacher/__cache__/best_weights.pth"
         mcfg.teacherModelFile = "/auto/mars/ame/c1.nano.teacher/__cache__/best_weights.pth"
         mcfg.distilLossWeights = (1.0, 0.05, 0.001)

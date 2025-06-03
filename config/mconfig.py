@@ -25,11 +25,13 @@ class ModelConfig(object):
         self.pretrainedBackboneUrl = None
         self.inputShape = (640, 640)
         self.regMax = 16
+        self.useSwinTransformer = False
 
         # distillation model setup
         self.teacherModelFile = None
         self.distilLossWeights = None
         self.teacherClassIndexes = None
+        self.distil_temperature = 4.0
 
         # train setup
         self.talTopk = 10

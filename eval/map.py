@@ -80,5 +80,8 @@ class MeanAveragePrecision(object):
         precisions = torch.cat((torch.tensor([1]), precisions))
         recalls = torch.cat((torch.tensor([0]), recalls))
         AP = torch.trapz(precisions, recalls)
+        
+        AP = min(AP.item(), 1.0)
+        AP = torch.tensor(AP)
 
         return AP, classTruePreds, classFalsePreds
